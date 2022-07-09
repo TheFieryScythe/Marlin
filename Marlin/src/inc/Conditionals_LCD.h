@@ -99,7 +99,7 @@
   #define IS_ULTIPANEL 1
   #define STD_ENCODER_PULSES_PER_STEP 2
 
-#elif ANY(miniVIKI, VIKI2, WYH_L12864, ELB_FULL_GRAPHIC_CONTROLLER, AZSMZ_12864)
+#elif ANY(miniVIKI, VIKI2, WYH_L12864, ELB_FULL_GRAPHIC_CONTROLLER, AZSMZ_12864, EMOTION_TECH_LCD)
 
   #define DOGLCD
   #define IS_DOGM_12864 1
@@ -116,6 +116,9 @@
     #define IS_U8GLIB_LM6059_AF 1
   #elif ENABLED(AZSMZ_12864)
     #define IS_U8GLIB_ST7565_64128N 1
+  #elif ENABLED(EMOTION_TECH_LCD)
+    #define IS_U8GLIB_ST7565_64128N 1
+    #define ST7565_VOLTAGE_DIVIDER_VALUE 0x07
   #endif
 
 #elif ENABLED(OLED_PANEL_TINYBOY2)
@@ -474,8 +477,6 @@
 // Aliases for LCD features
 #if EITHER(DWIN_CREALITY_LCD, DWIN_LCD_PROUI)
   #define HAS_DWIN_E3V2_BASIC 1
-#endif
-#if EITHER(HAS_DWIN_E3V2_BASIC, DWIN_CREALITY_LCD_JYERSUI)
   #define HAS_DWIN_E3V2 1
 #endif
 #if ENABLED(DWIN_LCD_PROUI)
@@ -505,7 +506,7 @@
   #endif
 #endif
 
-#if ANY(HAS_WIRED_LCD, EXTENSIBLE_UI, DWIN_LCD_PROUI, DWIN_CREALITY_LCD_JYERSUI)
+#if ANY(HAS_WIRED_LCD, EXTENSIBLE_UI, DWIN_LCD_PROUI)
   #define HAS_DISPLAY 1
 #endif
 
@@ -525,7 +526,7 @@
   #define HAS_MANUAL_MOVE_MENU 1
 #endif
 
-#if ANY(HAS_MARLINUI_U8GLIB, EXTENSIBLE_UI, HAS_MARLINUI_HD44780, IS_TFTGLCD_PANEL, IS_DWIN_MARLINUI, DWIN_CREALITY_LCD_JYERSUI)
+#if ANY(HAS_MARLINUI_U8GLIB, EXTENSIBLE_UI, HAS_MARLINUI_HD44780, IS_TFTGLCD_PANEL, IS_DWIN_MARLINUI)
   #define CAN_SHOW_REMAINING_TIME 1
 #endif
 
@@ -666,30 +667,36 @@
 #endif
 
 /**
- * Number of Linear Axes (e.g., XYZ)
+ * Number of Linear Axes (e.g., XYZIJKUVW)
  * All the logical axes except for the tool (E) axis
  */
-#ifdef LINEAR_AXES
-  #undef LINEAR_AXES
-  #define LINEAR_AXES_WARNING 1
+#ifdef NUM_AXES
+  #undef NUM_AXES
+  #define NUM_AXES_WARNING 1
 #endif
 
-#ifdef K_DRIVER_TYPE
-  #define LINEAR_AXES 6
+#ifdef W_DRIVER_TYPE
+  #define NUM_AXES 9
+#elif defined(V_DRIVER_TYPE)
+  #define NUM_AXES 8
+#elif defined(U_DRIVER_TYPE)
+  #define NUM_AXES 7
+#elif defined(K_DRIVER_TYPE)
+  #define NUM_AXES 6
 #elif defined(J_DRIVER_TYPE)
-  #define LINEAR_AXES 5
+  #define NUM_AXES 5
 #elif defined(I_DRIVER_TYPE)
-  #define LINEAR_AXES 4
+  #define NUM_AXES 4
 #elif defined(Z_DRIVER_TYPE)
-  #define LINEAR_AXES 3
+  #define NUM_AXES 3
 #elif defined(Y_DRIVER_TYPE)
-  #define LINEAR_AXES 2
+  #define NUM_AXES 2
 #else
-  #define LINEAR_AXES 1
+  #define NUM_AXES 1
 #endif
-#if LINEAR_AXES >= XY
+#if NUM_AXES >= XY
   #define HAS_Y_AXIS 1
-  #if LINEAR_AXES >= XYZ
+  #if NUM_AXES >= XYZ
     #define HAS_Z_AXIS 1
     #ifdef Z4_DRIVER_TYPE
       #define NUM_Z_STEPPERS 4
@@ -700,12 +707,21 @@
     #else
       #define NUM_Z_STEPPERS 1
     #endif
-    #if LINEAR_AXES >= 4
+    #if NUM_AXES >= 4
       #define HAS_I_AXIS 1
-      #if LINEAR_AXES >= 5
+      #if NUM_AXES >= 5
         #define HAS_J_AXIS 1
-        #if LINEAR_AXES >= 6
+        #if NUM_AXES >= 6
           #define HAS_K_AXIS 1
+          #if NUM_AXES >= 7
+            #define HAS_U_AXIS 1
+            #if NUM_AXES >= 8
+              #define HAS_V_AXIS 1
+              #if NUM_AXES >= 9
+                #define HAS_W_AXIS 1
+              #endif
+            #endif
+          #endif
         #endif
       #endif
     #endif
@@ -863,14 +879,58 @@
 #endif
 
 /**
- * Number of Logical Axes (e.g., XYZE)
- * All the logical axes that can be commanded directly by G-code.
+ * Number of Primary Linear Axes (e.g., XYZ)
+ * X, XY, or XYZ axes. Excluding duplicate axes (X2, Y2. Z2. Z3, Z4)
+ */
+#if NUM_AXES >= 3
+  #define PRIMARY_LINEAR_AXES 3
+#else
+  #define PRIMARY_LINEAR_AXES NUM_AXES
+#endif
+
+/**
+ * Number of Secondary Axes (e.g., IJKUVW)
+ * All linear/rotational axes between XYZ and E.
+ */
+#define SECONDARY_AXES SUB3(NUM_AXES)
+
+/**
+ * Number of Rotational Axes (e.g., IJK)
+ * All axes for which AXIS*_ROTATES is defined.
+ * For these axes, positions are specified in angular degrees.
+ */
+#if ENABLED(AXIS9_ROTATES)
+  #define ROTATIONAL_AXES 6
+#elif ENABLED(AXIS8_ROTATES)
+  #define ROTATIONAL_AXES 5
+#elif ENABLED(AXIS7_ROTATES)
+  #define ROTATIONAL_AXES 4
+#elif ENABLED(AXIS6_ROTATES)
+  #define ROTATIONAL_AXES 3
+#elif ENABLED(AXIS5_ROTATES)
+  #define ROTATIONAL_AXES 2
+#elif ENABLED(AXIS4_ROTATES)
+  #define ROTATIONAL_AXES 1
+#else
+  #define ROTATIONAL_AXES 0
+#endif
+
+/**
+ * Number of Secondary Linear Axes (e.g., UVW)
+ * All secondary axes for which AXIS*_ROTATES is not defined.
+ * Excluding primary axes and excluding duplicate axes (X2, Y2, Z2, Z3, Z4)
+ */
+#define SECONDARY_LINEAR_AXES (NUM_AXES - PRIMARY_LINEAR_AXES - ROTATIONAL_AXES)
+
+/**
+ * Number of Logical Axes (e.g., XYZIJKUVWE)
+ * All logical axes that can be commanded directly by G-code.
  * Delta maps stepper-specific values to ABC steppers.
  */
 #if HAS_EXTRUDERS
-  #define LOGICAL_AXES INCREMENT(LINEAR_AXES)
+  #define LOGICAL_AXES INCREMENT(NUM_AXES)
 #else
-  #define LOGICAL_AXES LINEAR_AXES
+  #define LOGICAL_AXES NUM_AXES
 #endif
 
 /**
@@ -888,7 +948,7 @@
  *  distinguished.
  */
 #if ENABLED(DISTINCT_E_FACTORS) && E_STEPPERS > 1
-  #define DISTINCT_AXES (LINEAR_AXES + E_STEPPERS)
+  #define DISTINCT_AXES (NUM_AXES + E_STEPPERS)
   #define DISTINCT_E E_STEPPERS
   #define E_INDEX_N(E) (E)
 #else
@@ -987,9 +1047,12 @@
 #endif
 
 /**
- * Set a flag for any type of bed probe, including the paper-test
+ * Set flags for any form of bed probe
  */
-#if ANY(HAS_Z_SERVO_PROBE, FIX_MOUNTED_PROBE, NOZZLE_AS_PROBE, TOUCH_MI_PROBE, Z_PROBE_ALLEN_KEY, Z_PROBE_SLED, SOLENOID_PROBE, SENSORLESS_PROBING, RACK_AND_PINION_PROBE, MAGLEV4)
+#if ANY(TOUCH_MI_PROBE, Z_PROBE_ALLEN_KEY, SOLENOID_PROBE, Z_PROBE_SLED, RACK_AND_PINION_PROBE, SENSORLESS_PROBING, MAGLEV4, MAG_MOUNTED_PROBE)
+  #define HAS_STOWABLE_PROBE 1
+#endif
+#if ANY(HAS_STOWABLE_PROBE, HAS_Z_SERVO_PROBE, FIX_MOUNTED_PROBE, NOZZLE_AS_PROBE)
   #define HAS_BED_PROBE 1
 #endif
 
@@ -1118,6 +1181,21 @@
 #elif K_HOME_DIR < 0
   #define K_HOME_TO_MIN 1
 #endif
+#if U_HOME_DIR > 0
+  #define U_HOME_TO_MAX 1
+#elif U_HOME_DIR < 0
+  #define U_HOME_TO_MIN 1
+#endif
+#if V_HOME_DIR > 0
+  #define V_HOME_TO_MAX 1
+#elif V_HOME_DIR < 0
+  #define V_HOME_TO_MIN 1
+#endif
+#if W_HOME_DIR > 0
+  #define W_HOME_TO_MAX 1
+#elif W_HOME_DIR < 0
+  #define W_HOME_TO_MIN 1
+#endif
 
 /**
  * Conditionals based on the type of Bed Probe
@@ -1132,13 +1210,13 @@
   #if NONE(Z_MIN_PROBE_USES_Z_MIN_ENDSTOP_PIN, HAS_DELTA_SENSORLESS_PROBING)
     #define USES_Z_MIN_PROBE_PIN 1
   #endif
-  #if Z_HOME_TO_MIN && TERN1(USES_Z_MIN_PROBE_PIN, ENABLED(USE_PROBE_FOR_Z_HOMING))
+  #if Z_HOME_TO_MIN && (DISABLED(USES_Z_MIN_PROBE_PIN) || ENABLED(USE_PROBE_FOR_Z_HOMING))
     #define HOMING_Z_WITH_PROBE 1
   #endif
   #ifndef Z_PROBE_LOW_POINT
     #define Z_PROBE_LOW_POINT -5
   #endif
-  #if ENABLED(Z_PROBE_ALLEN_KEY)
+  #if EITHER(Z_PROBE_ALLEN_KEY, MAG_MOUNTED_PROBE)
     #define PROBE_TRIGGERED_WHEN_STOWED_TEST 1 // Extra test for Allen Key Probe
   #endif
   #if MULTIPLE_PROBING > 1
